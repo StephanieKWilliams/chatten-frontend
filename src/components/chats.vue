@@ -82,37 +82,47 @@
     created () {
       this.username = sessionStorage.getItem('username')
   
-      // Setup headers for all requests
-      $.ajaxSetup({
-        beforeSend: function(xhr) {
-          xhr.setRequestHeader('Authorization', `JWT ${sessionStorage.getItem('authToken')}`)
-        }
-      })
+     
     },
   
     methods: {
-        async startChatSession() {
-      try {
-        const response = await fetch('http://localhost:8000/api/chats/', {
-          method: 'POST',
-          headers: {
-            'Authorization': `JWT ${sessionStorage.getItem('authToken')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-          alert("A new session has been created, you'll be redirected automatically");
-          this.sessionStarted = true;
-          this.$router.push(`/chats/${data.uri}/`);
-        } else {
-          alert(data.message || 'An error occurred while starting the chat session.');
-        }
-      } catch (error) {
-        alert('An error occurred: ' + error.message);
-      }
+      async startChatSession() {
+  try {
+    const token = sessionStorage.getItem('authToken');
+    if (!token) {
+      alert('Please log in again. Token not found.');
+      return;
     }
+
+    console.log("JWT Token: ", token);  // Log the token to debug
+
+    const response = await fetch('http://localhost:8000/api/chats/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${token}`,  // Correct the Authorization header format
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',  // Send cookies with the request if needed (e.g., session cookies)
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      console.log("Chat session created: ", data); // Log the data to debug
+      alert("A new session has been created, you'll be redirected automatically.");
+      this.sessionStarted = true;
+      this.$router.push(`/chats/${data.uri}/`);
+    } else {
+      console.error("Error starting chat session:", data); // Log the error data
+      alert(data.message || 'An error occurred while starting the chat session.');
+    }
+  } catch (error) {
+    console.error('An error occurred:', error);  // Log any errors that occur during the request
+    alert('An error occurred: ' + error.message);
+  }
+}
+
+
     }
   }
   </script>

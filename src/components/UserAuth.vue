@@ -5,16 +5,32 @@
       <div class="col-sm-4 offset-sm-4">
         <ul class="nav nav-tabs nav-justified" id="myTab" role="tablist">
           <li class="nav-item">
-            <a class="nav-link active" id="signup-tab" data-toggle="tab" href="#signup" role="tab" aria-controls="signup" aria-selected="true">Sign Up</a>
+            <a class="nav-link" 
+               :class="{ active: isSignUp }" 
+               id="signup-tab" 
+               data-toggle="tab" 
+               href="#signup" 
+               role="tab" 
+               aria-controls="signup" 
+               aria-selected="true" 
+               @click="isSignUp = true">Sign Up</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" id="signin-tab" data-toggle="tab" href="#signin" role="tab" aria-controls="signin" aria-selected="false">Sign In</a>
+            <a class="nav-link" 
+               :class="{ active: !isSignUp }" 
+               id="signin-tab" 
+               data-toggle="tab" 
+               href="#signin" 
+               role="tab" 
+               aria-controls="signin" 
+               aria-selected="false" 
+               @click="isSignUp = false">Sign In</a>
           </li>
         </ul>
 
         <div class="tab-content" id="myTabContent">
           <!-- Sign Up Tab -->
-          <div class="tab-pane fade show active" id="signup" role="tabpanel" aria-labelledby="signup-tab">
+          <div class="tab-pane fade" :class="{ 'show active': isSignUp }" id="signup" role="tabpanel" aria-labelledby="signup-tab">
             <form @submit.prevent="signUp">
               <div class="form-group">
                 <input v-model="email" type="email" class="form-control" id="email" placeholder="Email Address" required>
@@ -42,7 +58,7 @@
           </div>
 
           <!-- Sign In Tab -->
-          <div class="tab-pane fade" id="signin" role="tabpanel" aria-labelledby="signin-tab">
+          <div class="tab-pane fade" :class="{ 'show active': !isSignUp }" id="signin" role="tabpanel" aria-labelledby="signin-tab">
             <form @submit.prevent="signIn">
               <div class="form-group">
                 <input v-model="username" type="text" class="form-control" id="username" placeholder="Username" required>
@@ -60,107 +76,98 @@
     </div>
   </div>
 </template>
-
 <script>
-const $ = window.jQuery // Importing jQuery
-
 export default {
-  data () {
+  data() {
     return {
-      email: '',         // Email for sign up
-      username: '',      // Username for both sign up and sign in
-      password: '',      // Password for both sign up and sign in
-      toc: false,        // Terms and Conditions checkbox
-      loading: false,    // Loading state for button
-      isSignUp: true     // Flag to toggle between sign up and sign in (if needed)
-    }
+      email: '',
+      username: '',
+      password: '',
+      toc: false,
+      loading: false,
+      isSignUp: true  // Controls the active tab
+    };
   },
+  
   methods: {
-    // Sign up method
-    signUp () {
-  const userData = {
-    email: this.email,
-    username: this.username,
-    password: this.password,
-  };
+    // Sign Up method
+    signUp() {
+      const userData = {
+        email: this.email,
+        username: this.username,
+        password: this.password,
+      };
 
-  this.loading = true; // Start loading
-  console.log("Sending sign up request...");
+      this.loading = true;
+      console.log("Sending sign up request...");
 
-  fetch('http://localhost:8000/auth/users/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+      fetch('http://localhost:8000/auth/users/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(userData),
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Sign Up failed: ' + response.statusText);
+          }
+          return response.json();
+        })
+        .then(data => {
+          alert("Your account has been created.");
+          this.isSignUp = false; // Switch to the sign-in tab after successful sign-up
+        })
+        .catch(error => {
+          console.error(error);
+          alert(error.message);
+        })
+        .finally(() => {
+          this.loading = false;
+          console.log("Sign up request completed.");
+        });
     },
-    body: JSON.stringify(userData)
-  })
-  .then(response => {
-    if (!response.ok) {
-      throw new Error('Sign Up failed: ' + response.statusText);
-    }
-    return response.json();
-  })
-  .then(data => {
-    alert("Your account has been created. You will be signed in automatically");
-    this.signIn();
-  })
-  .catch(error => {
-    console.error(error);
-    alert(error.message);
-  })
-  .finally(() => {
-    this.loading = false; // End loading
-    console.log("Sign up request completed.");
-  });
-},
 
-signIn () {
-  const credentials = {
-    username: this.username,
-    password: this.password
-  };
+    // Sign In method
+    signIn() {
+      const credentials = {
+        username: this.username,
+        password: this.password,
+      };
 
-  this.loading = true; // Start loading
-  console.log("Sending sign in request...");
+      this.loading = true;
+      console.log("Sending sign in request...");
 
-  fetch('http://localhost:8000/auth/token/login/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+      fetch('http://localhost:8000/auth/token/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(credentials),
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Login failed: ' + response.statusText);
+          }
+          return response.json();
+        })
+        .then(data => {
+          sessionStorage.setItem('authToken', data.auth_token);
+          sessionStorage.setItem('username', this.username);
+          alert("Logged in successfully!");
+          this.$router.push('/chats');  // Redirect to chats
+        })
+        .catch(error => {
+          console.error(error);
+          alert(error.message);
+        })
+        .finally(() => {
+          this.loading = false;
+          console.log("Sign in request completed.");
+        });
     },
-    body: JSON.stringify(credentials)
-  })
-  .then(response => {
-    if (!response.ok) {
-      throw new Error('Login failed: ' + response.statusText);
-    }
-    return response.json();
-  })
-  .then(data => {
-    sessionStorage.setItem('authToken', data.auth_token);
-    sessionStorage.setItem('username', this.username);
-    this.$router.push('/chats'); // Redirect to chats
-  })
-  .catch(error => {
-    console.error(error);
-    alert(error.message);
-  })
-  .finally(() => {
-    this.loading = false; // End loading
-    console.log("Sign in request completed.");
-  });
-}
-
   }
-}
+};
 </script>
-
-<style scoped>
-#auth-container {
-  margin-top: 50px;
-}
-
-.tab-content {
-  padding-top: 20px;
-}
-</style>
