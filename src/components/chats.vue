@@ -8,7 +8,7 @@
           </div>
 
           <div class="card-body">
-            <div class="container chat-body">
+            <div class="container chat-body" ref="chatBody">
               <div v-for="message in messages" :key="message.id" class="row chat-section">
                 <template v-if="username === message.user.username">
                   <div class="col-sm-7 offset-3">
@@ -63,6 +63,7 @@
   </div>
 </template>
 
+
 <script>
 export default {
   data() {
@@ -71,6 +72,7 @@ export default {
       messages: [],
       message: '',
       username: sessionStorage.getItem('username'),
+      socket: null,
     };
   },
 
@@ -79,10 +81,21 @@ export default {
     if (this.$route.params.uri) {
       this.joinChatSession();
     }
-    setInterval(this.fetchChatSessionHistory, 3000)
+    setInterval(this.fetchChatSessionHistory, 3000);  // Fetch history periodically
+
+    // Initialize WebSocket connection
+    this.initializeWebSocket();
   },
 
   methods: {
+    // Scroll to the bottom of the chat container
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const chatContainer = this.$refs.chatBody;
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      });
+    },
+
     // Start a new chat session
     async startChatSession() {
       try {
@@ -91,8 +104,6 @@ export default {
           alert('Please log in again. Token not found.');
           return;
         }
-
-        console.log("JWT Token: ", token);
 
         const response = await fetch('http://localhost:8000/api/chats/', {
           method: 'POST',
@@ -106,16 +117,12 @@ export default {
         const data = await response.json();
 
         if (response.ok) {
-          console.log("Chat session created: ", data);
-          alert("A new session has been created, you'll be redirected automatically.");
           this.sessionStarted = true;
           this.$router.push(`/chats/${data.uri}/`);
         } else {
-          console.error("Error starting chat session:", data);
           alert(data.message || 'An error occurred while starting the chat session.');
         }
       } catch (error) {
-        console.error('An error occurred:', error);
         alert('An error occurred: ' + error.message);
       }
     },
@@ -137,16 +144,12 @@ export default {
         const data = await response.json();
 
         if (response.ok) {
-          const user = data.members.find((member) => member.username === this.username);
-          if (user) {
-            this.sessionStarted = true;
-            this.fetchChatSessionHistory();
-          }
+          this.sessionStarted = true;
+          this.fetchChatSessionHistory();
         } else {
           alert('Failed to join the chat session.');
         }
       } catch (error) {
-        console.error('Error joining session:', error);
         alert('An error occurred while joining the session.');
       }
     },
@@ -167,11 +170,11 @@ export default {
         const data = await response.json();
         if (response.ok) {
           this.messages = data.messages;
+          this.scrollToBottom(); // Scroll to bottom when history is fetched
         } else {
           alert('Failed to fetch messages.');
         }
       } catch (error) {
-        console.error('Error fetching messages:', error);
         alert('An error occurred while fetching messages.');
       }
     },
@@ -199,16 +202,44 @@ export default {
         if (response.ok) {
           this.messages.push(messageData);
           this.message = ''; // Clear input after sending
+          this.scrollToBottom(); // Scroll to bottom after sending
         } else {
           alert(messageData.message || 'An error occurred while sending the message.');
         }
       } catch (error) {
         alert('An error occurred: ' + error.message);
       }
+    },
+
+    // Initialize the WebSocket connection
+    async initializeWebSocket() {
+      const chatSessionId = this.$route.params.uri;
+      const socket = new WebSocket(`ws://localhost:8001/chat/${chatSessionId}/`);
+
+      socket.onopen = () => {
+        console.log("WebSocket connection established.");
+      };
+
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        const newMessage = data.message;
+        
+        // Add the new message to the messages array
+        this.messages.push(newMessage);
+        this.scrollToBottom(); // Scroll to bottom when a new message arrives
+      };
+
+      socket.onerror = (error) => console.log('WebSocket Error: ', error);
+      socket.onclose = () => {
+        console.log("WebSocket connection closed.");
+      };
+
+      this.socket = socket;
     }
   }
 };
 </script>
+
   
   <style scoped>
   h1,

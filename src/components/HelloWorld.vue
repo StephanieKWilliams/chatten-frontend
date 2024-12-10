@@ -98,7 +98,7 @@ export default {
 <style scoped>
 h1, h2 {
   font-weight: normal;
-}
+}   pip install --upgrade pip
 ul {
   list-style-type: none;
   padding: 0;
